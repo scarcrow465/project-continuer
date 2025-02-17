@@ -1,6 +1,6 @@
 
 import { Instrument } from '../../data/instruments';
-import { Exchange } from '../../data/exchanges';
+import { Exchange, exchangeGroups, exchangeFeeMap, getInstrumentFee as getExchangeInstrumentFee } from '../../data/exchanges';
 
 export interface CalculatorInstance {
   id: string;
@@ -31,7 +31,7 @@ export const calculateRiskReward = (
       return {
         riskAmount,
         profitAmount,
-        riskRewardRatio: profitAmount / riskAmount // Fixed calculation
+        riskRewardRatio: riskAmount / profitAmount
       };
     case 'ratio':
       return {
@@ -59,8 +59,8 @@ export const getMicroSavingsRecommendation = (
   const regularContracts = Math.floor(contracts / 10);
   if (regularContracts < 1) return null;
 
-  // Get the fee for the regular instrument from the specific exchange
-  const regularFee = getInstrumentFee(exchangeId, regularInstrument.id) || feePerContract;
+  // Get the fee for the regular instrument
+  const regularFee = getExchangeInstrumentFee(exchangeId, regularInstrument.id) || feePerContract;
   const regularFees = regularContracts * regularFee;
   const savings = currentTotalFees - regularFees;
   
@@ -72,12 +72,3 @@ export const getMicroSavingsRecommendation = (
     instrument: regularInstrument
   };
 };
-
-function getInstrumentFee(exchangeId: string, instrumentId: string): number | null {
-  if (exchangeId === 'topstep_x_no_fees') return 0;
-  if (exchangeId.startsWith('topstep_')) {
-    return exchangeFeeMap[exchangeId as keyof typeof exchangeFeeMap]?.[instrumentId as keyof typeof exchangeFeeMap['topstep_x']] ?? null;
-  }
-  const exchange = exchangeGroups.flatMap(g => g.exchanges).find(ex => ex.id === exchangeId);
-  return exchange?.fee ?? null;
-}
