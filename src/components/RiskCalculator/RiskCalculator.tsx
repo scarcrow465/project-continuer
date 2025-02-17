@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { CalculatorInstance } from './utils';
 import { instruments } from '../../data/instruments';
@@ -14,10 +13,17 @@ interface RiskCalculatorProps {
 }
 
 export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, onRemove }) => {
+  const [activeField, setActiveField] = useState<'ticks' | 'points' | 'risk' | 'profit' | null>(null);
+  
   const instrumentFee = getInstrumentFee(data.selectedExchange.id, data.selectedInstrument.id);
   const feePerContract = instrumentFee ?? data.customFee;
   
-  const contracts = Math.ceil(data.riskAmount / (data.selectedInstrument.tickValue * data.ticks));
+  // Calculate risk per contract including fees
+  const riskPerContract = data.selectedInstrument.tickValue * data.ticks + feePerContract;
+  
+  // Calculate optimal contracts based on desired risk amount
+  const contracts = Math.max(1, Math.floor(data.riskAmount / riskPerContract));
+  
   const totalRisk = (contracts * data.selectedInstrument.tickValue * data.ticks) + (contracts * feePerContract);
   const totalFees = contracts * feePerContract;
   
@@ -34,11 +40,13 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
 
   const handleTicksChange = (ticks: number) => {
     const points = ticks * data.selectedInstrument.tickSize;
+    setActiveField('ticks');
     onUpdate(data.id, { ticks, points });
   };
 
   const handlePointsChange = (points: number) => {
     const ticks = Math.round(points / data.selectedInstrument.tickSize);
+    setActiveField('points');
     onUpdate(data.id, { points, ticks });
   };
 
@@ -52,16 +60,26 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
         profitAmount: data.riskAmount / value
       });
     } else if (type === 'risk') {
+      setActiveField('risk');
       onUpdate(data.id, {
         riskAmount: value,
         profitAmount: value / data.riskRewardRatio
       });
     } else {
+      setActiveField('profit');
       onUpdate(data.id, {
         profitAmount: value,
         riskRewardRatio: data.riskAmount / value
       });
     }
+  };
+
+  const getFieldStyle = (field: 'ticks' | 'points' | 'risk' | 'profit') => {
+    return `w-full bg-gray-700 border ${
+      activeField === field 
+        ? 'border-blue-500 ring-2 ring-blue-500/50' 
+        : 'border-gray-600'
+    } rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200`;
   };
 
   const savingsRecommendation = getMicroSavingsRecommendation(
@@ -154,7 +172,8 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
                 min="1"
                 value={data.ticks}
                 onChange={(e) => handleTicksChange(Math.max(1, parseInt(e.target.value) || 0))}
-                className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onFocus={() => setActiveField('ticks')}
+                className={getFieldStyle('ticks')}
               />
             </div>
             <div>
@@ -165,7 +184,8 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
                 step={data.selectedInstrument.tickSize}
                 value={data.points}
                 onChange={(e) => handlePointsChange(Math.max(0, parseFloat(e.target.value) || 0))}
-                className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onFocus={() => setActiveField('points')}
+                className={getFieldStyle('points')}
               />
             </div>
           </div>
@@ -178,7 +198,8 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
                 min="0"
                 value={data.riskAmount}
                 onChange={(e) => handleRiskRewardUpdate('risk', Math.max(0, parseFloat(e.target.value) || 0))}
-                className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onFocus={() => setActiveField('risk')}
+                className={getFieldStyle('risk')}
               />
             </div>
             <div>
@@ -199,7 +220,8 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
                 min="0"
                 value={data.profitAmount}
                 onChange={(e) => handleRiskRewardUpdate('profit', Math.max(0, parseFloat(e.target.value) || 0))}
-                className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onFocus={() => setActiveField('profit')}
+                className={getFieldStyle('profit')}
               />
             </div>
           </div>
