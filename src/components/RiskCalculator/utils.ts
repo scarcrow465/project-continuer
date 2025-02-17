@@ -1,3 +1,4 @@
+
 import { Instrument } from '../../data/instruments';
 import { Exchange } from '../../data/exchanges';
 
@@ -30,7 +31,7 @@ export const calculateRiskReward = (
       return {
         riskAmount,
         profitAmount,
-        riskRewardRatio: riskAmount > 0 ? profitAmount / riskAmount : 0
+        riskRewardRatio: profitAmount / riskAmount // Fixed calculation
       };
     case 'ratio':
       return {
@@ -58,6 +59,7 @@ export const getMicroSavingsRecommendation = (
   const regularContracts = Math.floor(contracts / 10);
   if (regularContracts < 1) return null;
 
+  // Get the fee for the regular instrument from the specific exchange
   const regularFee = getInstrumentFee(exchangeId, regularInstrument.id) || feePerContract;
   const regularFees = regularContracts * regularFee;
   const savings = currentTotalFees - regularFees;
@@ -71,7 +73,11 @@ export const getMicroSavingsRecommendation = (
   };
 };
 
-function getInstrumentFee(exchangeId: string, instrumentId: string): number {
-  // Implementation of getInstrumentFee function
-  return 0;
+function getInstrumentFee(exchangeId: string, instrumentId: string): number | null {
+  if (exchangeId === 'topstep_x_no_fees') return 0;
+  if (exchangeId.startsWith('topstep_')) {
+    return exchangeFeeMap[exchangeId as keyof typeof exchangeFeeMap]?.[instrumentId as keyof typeof exchangeFeeMap['topstep_x']] ?? null;
+  }
+  const exchange = exchangeGroups.flatMap(g => g.exchanges).find(ex => ex.id === exchangeId);
+  return exchange?.fee ?? null;
 }
