@@ -15,6 +15,14 @@ interface RiskCalculatorProps {
 export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, onRemove }) => {
   const instrumentFee = getInstrumentFee(data.selectedExchange.id, data.selectedInstrument.id);
   const feePerContract = instrumentFee ?? data.customFee;
+  
+  // Calculate contracts based on risk amount only, without limiting by total risk
+  const contracts = Math.ceil(data.riskAmount / (data.selectedInstrument.tickValue * data.ticks));
+  const totalRisk = (contracts * data.selectedInstrument.tickValue * data.ticks) + (contracts * feePerContract);
+  const totalFees = contracts * feePerContract;
+  
+  // Fix Risk/Reward ratio calculation (1:2 instead of 2:1)
+  const riskRewardRatio = totalRisk > 0 ? (totalRisk / data.profitAmount).toFixed(2) : '0.00';
 
   // Filter available instruments based on selected exchange
   const availableInstruments = instruments.filter(instrument => {
@@ -32,22 +40,13 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
     })
   })).filter(group => group.exchanges.length > 0);
 
-  // Calculate contracts based on risk amount only, without limiting by total risk
-  const contracts = Math.ceil(data.riskAmount / (data.selectedInstrument.tickValue * data.ticks));
-  const totalRisk = (contracts * data.selectedInstrument.tickValue * data.ticks) + (contracts * feePerContract);
-  const totalFees = contracts * feePerContract;
-
-  // Calculate risk/reward ratio
-  const riskRewardRatio = totalRisk > 0 ? (data.profitAmount / totalRisk).toFixed(2) : '0.00';
-
-  // Group instruments by category
-  const instrumentsByCategory = instruments.reduce((acc, instrument) => {
-    if (!acc[instrument.category]) {
-      acc[instrument.category] = [];
-    }
-    acc[instrument.category].push(instrument);
-    return acc;
-  }, {} as Record<string, typeof instruments>);
+  const savingsRecommendation = getMicroSavingsRecommendation(
+    contracts,
+    data.selectedInstrument,
+    feePerContract,
+    instruments,
+    data.selectedExchange.id
+  );
 
   const handleTicksChange = (ticks: number) => {
     const points = ticks * data.selectedInstrument.tickSize;
@@ -63,21 +62,26 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
     type: 'risk' | 'profit' | 'ratio',
     value: number
   ) => {
-    const updates = calculateRiskReward(
-      type === 'risk' ? value : data.riskAmount,
-      type === 'profit' ? value : data.profitAmount,
-      type === 'ratio' ? value : data.riskRewardRatio,
-      type
-    );
-    onUpdate(data.id, updates);
+    if (type === 'ratio') {
+      // When ratio is updated, update profit target based on risk amount
+      onUpdate(data.id, {
+        riskRewardRatio: value,
+        profitAmount: data.riskAmount / value
+      });
+    } else if (type === 'risk') {
+      // When risk is updated, update profit target based on ratio
+      onUpdate(data.id, {
+        riskAmount: value,
+        profitAmount: value / data.riskRewardRatio
+      });
+    } else {
+      // When profit is updated, update ratio based on risk amount
+      onUpdate(data.id, {
+        profitAmount: value,
+        riskRewardRatio: data.riskAmount / value
+      });
+    }
   };
-
-  const savingsRecommendation = getMicroSavingsRecommendation(
-    contracts,
-    data.selectedInstrument,
-    feePerContract,
-    instruments
-  );
 
   return (
     <div className="bg-gray-800 rounded-lg shadow-xl p-6 relative">
@@ -237,36 +241,35 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
             </div>
             <div>
               <h3 className="text-sm text-gray-400">Risk/Reward Ratio</h3>
-              <p className="text-2xl font-bold text-purple-400">{riskRewardRatio}:1</p>
+              <p className="text-2xl font-bold text-purple-400">1:{riskRewardRatio}</p>
             </div>
-          </div>
-
-          {/* Fee Savings Recommendation */}
-          {savingsRecommendation && (
-            <div className="bg-gray-900 rounded-lg p-4">
-              <div className="flex items-center gap-2 text-yellow-400">
-                <AlertCircle size={20} />
-                <h3 className="text-sm">Fee Savings Opportunity</h3>
-              </div>
-              <p className="text-sm text-gray-400 mt-2">
-                Consider trading {savingsRecommendation.regularContracts} contract(s) of {savingsRecommendation.instrument.name} instead of {contracts} micro contracts.
-              </p>
-              <p className="text-sm text-green-400">
-                Potential Savings: ${savingsRecommendation.savings.toFixed(2)}
-              </p>
-            </div>
+          
+          {/* Add Margin Info inside results panel */}
+          {data.selectedExchange.type === 'direct' && (
+            <MarginInfo
+              instrument={data.selectedInstrument}
+              contracts={contracts}
+              exchange={data.selectedExchange}
+            />
           )}
         </div>
-      </div>
 
-      {/* Add Margin Info */}
-      {data.selectedExchange.type === 'direct' && (
-        <MarginInfo
-          instrument={data.selectedInstrument}
-          contracts={contracts}
-          exchange={data.selectedExchange}
-        />
-      )}
+        {/* Fee Savings Recommendation */}
+        {savingsRecommendation && (
+          <div className="bg-gray-900 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-yellow-400">
+              <AlertCircle size={20} />
+              <h3 className="text-sm">Fee Savings Opportunity</h3>
+            </div>
+            <p className="text-sm text-gray-400 mt-2">
+              Consider trading {savingsRecommendation.regularContracts} contract(s) of {savingsRecommendation.instrument.name} instead of {contracts} micro contracts.
+            </p>
+            <p className="text-sm text-green-400">
+              Potential Savings: ${savingsRecommendation.savings.toFixed(2)}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

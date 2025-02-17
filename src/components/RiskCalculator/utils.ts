@@ -1,4 +1,3 @@
-
 import { Instrument } from '../../data/instruments';
 import { Exchange } from '../../data/exchanges';
 
@@ -48,7 +47,8 @@ export const getMicroSavingsRecommendation = (
   contracts: number,
   instrument: Instrument,
   feePerContract: number,
-  instruments: Instrument[]
+  instruments: Instrument[],
+  exchangeId: string
 ) => {
   if (!instrument.regularVersion) return null;
   const regularInstrument = instruments.find(i => i.id === instrument.regularVersion);
@@ -58,7 +58,8 @@ export const getMicroSavingsRecommendation = (
   const regularContracts = Math.floor(contracts / 10);
   if (regularContracts < 1) return null;
 
-  const regularFees = regularContracts * feePerContract;
+  const regularFee = getInstrumentFee(exchangeId, regularInstrument.id) || feePerContract;
+  const regularFees = regularContracts * regularFee;
   const savings = currentTotalFees - regularFees;
   
   if (savings <= 0) return null;
@@ -69,3 +70,8 @@ export const getMicroSavingsRecommendation = (
     instrument: regularInstrument
   };
 };
+
+function getInstrumentFee(exchangeId: string, instrumentId: string): number {
+  // Implementation of getInstrumentFee function
+  return 0;
+}
