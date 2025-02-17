@@ -36,7 +36,7 @@ export const instruments: Instrument[] = [
   { 
     id: 'NQ', 
     name: 'E-mini NASDAQ-100', 
-    tickValue: 20.00, 
+    tickValue: 5.00, 
     tickSize: 0.25, 
     microVersion: 'MNQ', 
     category: 'Indices',
@@ -46,7 +46,7 @@ export const instruments: Instrument[] = [
   { 
     id: 'MNQ', 
     name: 'Micro E-mini NASDAQ-100', 
-    tickValue: 2.00, 
+    tickValue: 0.50, 
     tickSize: 0.25, 
     regularVersion: 'NQ', 
     category: 'Indices',
@@ -56,7 +56,7 @@ export const instruments: Instrument[] = [
   { 
     id: 'RTY', 
     name: 'E-mini Russell 2000', 
-    tickValue: 10.00, 
+    tickValue: 5.00, 
     tickSize: 0.10, 
     microVersion: 'M2K', 
     category: 'Indices',
@@ -66,7 +66,7 @@ export const instruments: Instrument[] = [
   { 
     id: 'M2K', 
     name: 'Micro E-mini Russell 2000', 
-    tickValue: 1.00, 
+    tickValue: 0.50, 
     tickSize: 0.10, 
     regularVersion: 'RTY', 
     category: 'Indices',
@@ -96,7 +96,7 @@ export const instruments: Instrument[] = [
   { 
     id: 'NKD', 
     name: 'Nikkei 225', 
-    tickValue: 25.00, 
+    tickValue: 5.00, 
     tickSize: 5.00, 
     category: 'Indices',
     marginPerContract: 6600,
@@ -147,7 +147,7 @@ export const instruments: Instrument[] = [
   { 
     id: 'QM', 
     name: 'E-mini Crude Oil', 
-    tickValue: 12.50, 
+    tickValue: 5.00, 
     tickSize: 0.025, 
     category: 'Energy',
     marginPerContract: 2200,
@@ -156,7 +156,7 @@ export const instruments: Instrument[] = [
   { 
     id: 'RB', 
     name: 'RBOB Gasoline', 
-    tickValue: 42.00, 
+    tickValue: 4.20, 
     tickSize: 0.0001, 
     category: 'Energy',
     marginPerContract: 4950,
@@ -165,7 +165,7 @@ export const instruments: Instrument[] = [
   { 
     id: 'HO', 
     name: 'Heating Oil', 
-    tickValue: 42.00, 
+    tickValue: 4.20, 
     tickSize: 0.0001, 
     category: 'Energy',
     marginPerContract: 4950,
@@ -236,7 +236,7 @@ export const instruments: Instrument[] = [
   { 
     id: 'PL', 
     name: 'Platinum', 
-    tickValue: 25.00, 
+    tickValue: 5.00, 
     tickSize: 0.10, 
     category: 'Metals',
     marginPerContract: 3300,
@@ -248,7 +248,7 @@ export const instruments: Instrument[] = [
     id: '6E', 
     name: 'Euro FX', 
     tickValue: 12.50, 
-    tickSize: 0.0001, 
+    tickSize: 0.00005, 
     microVersion: 'M6E', 
     category: 'Currencies',
     marginPerContract: 2750,
@@ -258,7 +258,7 @@ export const instruments: Instrument[] = [
     id: 'M6E', 
     name: 'Micro Euro FX', 
     tickValue: 1.25, 
-    tickSize: 0.0001, 
+    tickSize: 0.00005, 
     regularVersion: '6E', 
     category: 'Currencies',
     marginPerContract: 275,
@@ -287,8 +287,8 @@ export const instruments: Instrument[] = [
   { 
     id: '6J', 
     name: 'Japanese Yen', 
-    tickValue: 12.50, 
-    tickSize: 0.000001, 
+    tickValue: 6.25, 
+    tickSize: 0.0000005, 
     category: 'Currencies',
     marginPerContract: 2750,
     dayMarginPerContract: 110
@@ -344,7 +344,7 @@ export const instruments: Instrument[] = [
     id: '6M', 
     name: 'Mexican Peso', 
     tickValue: 12.50, 
-    tickSize: 0.00001, 
+    tickSize: 0.000025, 
     category: 'Currencies',
     marginPerContract: 2200,
     dayMarginPerContract: 88
@@ -391,7 +391,7 @@ export const instruments: Instrument[] = [
     id: 'ZT', 
     name: '2-Year U.S. Treasury Note', 
     tickValue: 15.625, 
-    tickSize: 0.003906, 
+    tickSize: 0.007812, 
     category: 'Interest Rates',
     marginPerContract: 1100,
     dayMarginPerContract: 44
@@ -465,7 +465,7 @@ export const instruments: Instrument[] = [
     id: 'ZL', 
     name: 'Soybean Oil', 
     tickValue: 6.00, 
-    tickSize: 0.0001, 
+    tickSize: 0.01, 
     category: 'Agriculture',
     marginPerContract: 2750,
     dayMarginPerContract: 110
