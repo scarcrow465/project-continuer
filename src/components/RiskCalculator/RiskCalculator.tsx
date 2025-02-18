@@ -1,15 +1,18 @@
+
 import React, { useState } from 'react';
-import { X, AlertCircle } from 'lucide-react';
+import { X, AlertCircle, RotateCcw } from 'lucide-react';
 import { CalculatorInstance } from './utils';
 import { instruments } from '../../data/instruments';
 import { exchangeGroups, getInstrumentFee } from '../../data/exchanges';
 import { MarginInfo } from './MarginInfo';
 import { calculateRiskReward, getMicroSavingsRecommendation } from './utils';
+import { useTheme } from 'next-themes';
 
 interface RiskCalculatorProps {
   data: CalculatorInstance;
   onUpdate: (id: string, updates: Partial<CalculatorInstance>) => void;
   onRemove: (id: string) => void;
+  onReset: () => void;
 }
 
 interface OptimalContract {
@@ -18,8 +21,9 @@ interface OptimalContract {
   totalRisk: number;
 }
 
-export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, onRemove }) => {
-  const [activeField, setActiveField] = useState<'ticks' | 'points' | 'risk' | 'profit' | null>(null);
+export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, onRemove, onReset }) => {
+  const [activeFields, setActiveFields] = useState<Set<'ticks' | 'points' | 'risk' | 'profit'>>(new Set());
+  const { theme, setTheme } = useTheme();
   
   const instrumentFee = getInstrumentFee(data.selectedExchange.id, data.selectedInstrument.id);
   const feePerContract = instrumentFee ?? data.customFee;
@@ -46,7 +50,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
   // Find the best contract number based on user's input ticks
   const findBestContractNumber = (userTicks: number, optimalContracts: OptimalContract[]): OptimalContract => {
     if (optimalContracts.length === 0) {
-      // Return a default contract configuration if no optimal contracts are found
       return {
         contracts: 1,
         ticksPerContract: userTicks,
@@ -58,7 +61,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
       const currentDiff = Math.abs(current.ticksPerContract - userTicks);
       const bestDiff = Math.abs(best.ticksPerContract - userTicks);
       return currentDiff < bestDiff ? current : best;
-    }, optimalContracts[0]); // Provide initial value
+    }, optimalContracts[0]);
   };
 
   const bestContract = findBestContractNumber(data.ticks, optimalContracts);
@@ -66,10 +69,14 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
   const recommendedTicks = bestContract.ticksPerContract;
   const recommendedPoints = recommendedTicks * data.selectedInstrument.tickSize;
   
-  const totalRisk = (contracts * data.selectedInstrument.tickValue * data.ticks) + (contracts * feePerContract);
+  // Calculate total risk based on recommended ticks
+  const totalRisk = (contracts * data.selectedInstrument.tickValue * recommendedTicks) + (contracts * feePerContract);
   const totalFees = contracts * feePerContract;
   
   const riskRewardRatio = totalRisk > 0 ? (totalRisk / data.profitAmount).toFixed(2) : '0.00';
+
+  // Target profit ticks calculation
+  const profitTargetTicks = Math.ceil(data.profitAmount / (contracts * data.selectedInstrument.tickValue));
 
   // Group instruments by category
   const instrumentsByCategory = instruments.reduce((acc, instrument) => {
@@ -82,13 +89,23 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
 
   const handleTicksChange = (ticks: number) => {
     const points = ticks * data.selectedInstrument.tickSize;
-    setActiveField('ticks');
+    setActiveFields(prev => {
+      const next = new Set(prev);
+      next.delete('points');
+      next.add('ticks');
+      return next;
+    });
     onUpdate(data.id, { ticks, points });
   };
 
   const handlePointsChange = (points: number) => {
     const ticks = Math.round(points / data.selectedInstrument.tickSize);
-    setActiveField('points');
+    setActiveFields(prev => {
+      const next = new Set(prev);
+      next.delete('ticks');
+      next.add('points');
+      return next;
+    });
     onUpdate(data.id, { points, ticks });
   };
 
@@ -102,13 +119,23 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
         profitAmount: data.riskAmount / value
       });
     } else if (type === 'risk') {
-      setActiveField('risk');
+      setActiveFields(prev => {
+        const next = new Set(prev);
+        next.delete('profit');
+        next.add('risk');
+        return next;
+      });
       onUpdate(data.id, {
         riskAmount: value,
         profitAmount: value / data.riskRewardRatio
       });
     } else {
-      setActiveField('profit');
+      setActiveFields(prev => {
+        const next = new Set(prev);
+        next.delete('risk');
+        next.add('profit');
+        return next;
+      });
       onUpdate(data.id, {
         profitAmount: value,
         riskRewardRatio: data.riskAmount / value
@@ -117,10 +144,11 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
   };
 
   const getFieldStyle = (field: 'ticks' | 'points' | 'risk' | 'profit') => {
-    if (activeField === field) {
-      return 'w-full bg-gray-700 border border-blue-500 ring-2 ring-blue-500/50 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200';
-    }
-    return 'w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200';
+    return `w-full bg-gray-700 border ${
+      activeFields.has(field) 
+        ? 'border-blue-500 ring-2 ring-blue-500/50' 
+        : 'border-gray-600'
+    } rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200`;
   };
 
   const savingsRecommendation = getMicroSavingsRecommendation(
@@ -132,13 +160,22 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
   );
 
   return (
-    <div className="bg-gray-800 rounded-lg shadow-xl p-6 relative">
-      <button 
-        onClick={() => onRemove(data.id)}
-        className="absolute top-4 right-4 text-gray-400 hover:text-red-400"
-      >
-        <X size={20} />
-      </button>
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 relative">
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        <button
+          onClick={onReset}
+          className="text-gray-400 hover:text-yellow-400"
+          title="Reset Calculator"
+        >
+          <RotateCcw size={20} />
+        </button>
+        <button 
+          onClick={() => onRemove(data.id)}
+          className="text-gray-400 hover:text-red-400"
+        >
+          <X size={20} />
+        </button>
+      </div>
 
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2 space-y-6">
@@ -190,43 +227,43 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
           </div>
 
           {/* Risk Parameters */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <label className="block text-sm font-medium mb-2">Number of Ticks</label>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Risk Entry - Number of Ticks</label>
                 <input
                   type="number"
                   min="1"
                   value={data.ticks}
                   onChange={(e) => handleTicksChange(Math.max(1, parseInt(e.target.value) || 0))}
-                  onFocus={() => setActiveField('ticks')}
+                  onFocus={() => handleTicksChange(data.ticks)}
                   className={getFieldStyle('ticks')}
                 />
               </div>
-              <div className="flex-1">
-                <label className="block text-sm font-medium mb-2">Recommended Ticks</label>
-                <div className="text-gray-300 bg-gray-700 rounded-md px-3 py-2">
+              <div>
+                <label className="block text-sm font-medium mb-2">Recommended Risk Ticks</label>
+                <div className="text-gray-300 bg-gray-800 dark:bg-gray-900 rounded-md px-3 py-2 cursor-not-allowed opacity-80">
                   {recommendedTicks}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <label className="block text-sm font-medium mb-2">Number of Points</label>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Risk Entry - Number of Points</label>
                 <input
                   type="number"
                   min="0"
                   step={data.selectedInstrument.tickSize}
                   value={data.points}
                   onChange={(e) => handlePointsChange(Math.max(0, parseFloat(e.target.value) || 0))}
-                  onFocus={() => setActiveField('points')}
+                  onFocus={() => handlePointsChange(data.points)}
                   className={getFieldStyle('points')}
                 />
               </div>
-              <div className="flex-1">
-                <label className="block text-sm font-medium mb-2">Recommended Points</label>
-                <div className="text-gray-300 bg-gray-700 rounded-md px-3 py-2">
-                  {recommendedPoints.toFixed(4)}
+              <div>
+                <label className="block text-sm font-medium mb-2">Recommended Risk Points</label>
+                <div className="text-gray-300 bg-gray-800 dark:bg-gray-900 rounded-md px-3 py-2 cursor-not-allowed opacity-80">
+                  {recommendedPoints}
                 </div>
               </div>
             </div>
@@ -240,7 +277,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
                 min="0"
                 value={data.riskAmount}
                 onChange={(e) => handleRiskRewardUpdate('risk', Math.max(0, parseFloat(e.target.value) || 0))}
-                onFocus={() => setActiveField('risk')}
+                onFocus={() => handleRiskRewardUpdate('risk', data.riskAmount)}
                 className={getFieldStyle('risk')}
               />
             </div>
@@ -262,7 +299,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
                 min="0"
                 value={data.profitAmount}
                 onChange={(e) => handleRiskRewardUpdate('profit', Math.max(0, parseFloat(e.target.value) || 0))}
-                onFocus={() => setActiveField('profit')}
+                onFocus={() => handleRiskRewardUpdate('profit', data.profitAmount)}
                 className={getFieldStyle('profit')}
               />
             </div>
@@ -280,23 +317,23 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
         {/* Results Panel */}
         <div className="space-y-6">
           <div className="bg-gray-900 rounded-lg p-4 space-y-4">
-            <div>
+            <div className="text-center">
               <h3 className="text-sm text-gray-400">Recommended Contracts</h3>
               <p className="text-2xl font-bold text-blue-400">{contracts}</p>
             </div>
-            <div>
-              <h3 className="text-sm text-gray-400">Target Ticks per Contract</h3>
-              <p className="text-2xl font-bold text-blue-400">{recommendedTicks}</p>
+            <div className="text-center">
+              <h3 className="text-sm text-gray-400">Profit Target Ticks</h3>
+              <p className="text-2xl font-bold text-blue-400">{profitTargetTicks}</p>
             </div>
-            <div>
+            <div className="text-center">
               <h3 className="text-sm text-gray-400">Total Risk (including fees)</h3>
               <p className="text-2xl font-bold text-green-400">${totalRisk.toFixed(2)}</p>
             </div>
-            <div>
+            <div className="text-center">
               <h3 className="text-sm text-gray-400">Total Fees</h3>
               <p className="text-2xl font-bold text-yellow-400">${totalFees.toFixed(2)}</p>
             </div>
-            <div>
+            <div className="text-center">
               <h3 className="text-sm text-gray-400">Risk/Reward Ratio</h3>
               <p className="text-2xl font-bold text-purple-400">1:{riskRewardRatio}</p>
             </div>
