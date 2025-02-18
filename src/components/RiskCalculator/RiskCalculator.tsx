@@ -1,18 +1,31 @@
-
 import React, { useState } from 'react';
-import { X, AlertCircle, RotateCcw } from 'lucide-react';
+import { X, AlertCircle, RotateCcw, Save, Star, StarOff } from 'lucide-react';
 import { CalculatorInstance } from './utils';
 import { instruments } from '../../data/instruments';
 import { exchangeGroups, getInstrumentFee } from '../../data/exchanges';
 import { MarginInfo } from './MarginInfo';
 import { calculateRiskReward, getMicroSavingsRecommendation } from './utils';
 import { useTheme } from 'next-themes';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface Preset {
+  id: string;
+  name: string;
+  instrumentId: string | 'universal';
+  isDefault: boolean;
+  settings: Omit<CalculatorInstance, 'id'>;
+}
 
 interface RiskCalculatorProps {
   data: CalculatorInstance;
   onUpdate: (id: string, updates: Partial<CalculatorInstance>) => void;
   onRemove: (id: string) => void;
   onReset: () => void;
+  presets: Preset[];
+  onSavePreset: (name: string, isUniversal: boolean) => void;
+  onUpdatePreset: (presetId: string, updates: Partial<Preset>) => void;
+  onDeletePreset: (presetId: string) => void;
+  onSetDefaultPreset: (presetId: string) => void;
 }
 
 interface OptimalContract {
@@ -21,14 +34,26 @@ interface OptimalContract {
   totalRisk: number;
 }
 
-export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, onRemove, onReset }) => {
+export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
+  data,
+  onUpdate,
+  onRemove,
+  onReset,
+  presets,
+  onSavePreset,
+  onUpdatePreset,
+  onDeletePreset,
+  onSetDefaultPreset
+}) => {
   const [activeFields, setActiveFields] = useState<Set<'ticks' | 'points' | 'risk' | 'profit'>>(new Set());
-  const { theme, setTheme } = useTheme();
-  
+  const [showPresetModal, setShowPresetModal] = useState(false);
+  const [newPresetName, setNewPresetName] = useState('');
+  const [isUniversalPreset, setIsUniversalPreset] = useState(false);
+  const { theme } = useTheme();
+
   const instrumentFee = getInstrumentFee(data.selectedExchange.id, data.selectedInstrument.id);
   const feePerContract = instrumentFee ?? data.customFee;
-  
-  // Calculate optimal contracts and ticks based on risk amount
+
   const calculateOptimalContracts = (riskAmount: number, tickValue: number, fees: number): OptimalContract[] => {
     const results: OptimalContract[] = [];
     for (let contracts = 1; contracts <= 20; contracts++) {
@@ -47,7 +72,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
     feePerContract
   );
 
-  // Find the best contract number based on user's input ticks
   const findBestContractNumber = (userTicks: number, optimalContracts: OptimalContract[]): OptimalContract => {
     if (optimalContracts.length === 0) {
       return {
@@ -68,17 +92,14 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
   const contracts = bestContract.contracts;
   const recommendedTicks = bestContract.ticksPerContract;
   const recommendedPoints = recommendedTicks * data.selectedInstrument.tickSize;
-  
-  // Calculate total risk based on recommended ticks
+
   const totalRisk = (contracts * data.selectedInstrument.tickValue * recommendedTicks) + (contracts * feePerContract);
   const totalFees = contracts * feePerContract;
-  
+
   const riskRewardRatio = totalRisk > 0 ? (totalRisk / data.profitAmount).toFixed(2) : '0.00';
 
-  // Target profit ticks calculation
   const profitTargetTicks = Math.ceil(data.profitAmount / (contracts * data.selectedInstrument.tickValue));
 
-  // Group instruments by category
   const instrumentsByCategory = instruments.reduce((acc, instrument) => {
     if (!acc[instrument.category]) {
       acc[instrument.category] = [];
@@ -160,26 +181,56 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
   );
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 relative">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 relative"
+    >
       <div className="absolute top-4 right-4 flex items-center gap-2">
         <button
           onClick={onReset}
-          className="text-gray-400 hover:text-yellow-400"
+          className="text-gray-400 hover:text-yellow-400 transition-colors"
           title="Reset Calculator"
         >
           <RotateCcw size={20} />
         </button>
+        <button
+          onClick={() => setShowPresetModal(true)}
+          className="text-gray-400 hover:text-blue-400 transition-colors"
+          title="Save Preset"
+        >
+          <Save size={20} />
+        </button>
         <button 
           onClick={() => onRemove(data.id)}
-          className="text-gray-400 hover:text-red-400"
+          className="text-gray-400 hover:text-red-400 transition-colors"
         >
           <X size={20} />
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-3 gap-6 items-center">
         <div className="col-span-2 space-y-6">
-          {/* Instrument Selection */}
+          <div className="flex items-center gap-4 mb-4">
+            <select
+              className="flex-1 bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onChange={(e) => {
+                const preset = presets.find(p => p.id === e.target.value);
+                if (preset) {
+                  onUpdate(data.id, preset.settings);
+                }
+              }}
+            >
+              <option value="">Select Preset</option>
+              {presets.map(preset => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.name} {preset.isDefault ? '(Default)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div>
             <label className="block text-sm font-medium mb-2">Select Instrument</label>
             <select
@@ -201,7 +252,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
             </select>
           </div>
 
-          {/* Exchange Selection */}
           <div>
             <label className="block text-sm font-medium mb-2">Select Exchange</label>
             <select
@@ -226,11 +276,10 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
             </select>
           </div>
 
-          {/* Risk Parameters */}
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Risk Entry - Number of Ticks</label>
+              <motion.div layout>
+                <label className="block text-sm font-medium mb-2">Tick Risk</label>
                 <input
                   type="number"
                   min="1"
@@ -239,17 +288,17 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
                   onFocus={() => handleTicksChange(data.ticks)}
                   className={getFieldStyle('ticks')}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Recommended Risk Ticks</label>
+              </motion.div>
+              <motion.div layout>
+                <label className="block text-sm font-medium mb-2">Modified Tick Risk</label>
                 <div className="text-gray-300 bg-gray-800 dark:bg-gray-900 rounded-md px-3 py-2 cursor-not-allowed opacity-80">
                   {recommendedTicks}
                 </div>
-              </div>
+              </motion.div>
             </div>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Risk Entry - Number of Points</label>
+              <motion.div layout>
+                <label className="block text-sm font-medium mb-2">Point Risk</label>
                 <input
                   type="number"
                   min="0"
@@ -259,13 +308,13 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
                   onFocus={() => handlePointsChange(data.points)}
                   className={getFieldStyle('points')}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Recommended Risk Points</label>
+              </motion.div>
+              <motion.div layout>
+                <label className="block text-sm font-medium mb-2">Modified Point Risk</label>
                 <div className="text-gray-300 bg-gray-800 dark:bg-gray-900 rounded-md px-3 py-2 cursor-not-allowed opacity-80">
-                  {recommendedPoints}
+                  {Math.round(recommendedPoints)}
                 </div>
-              </div>
+              </motion.div>
             </div>
           </div>
 
@@ -305,7 +354,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
             </div>
           </div>
 
-          {/* Instrument Details */}
           <div className="text-sm text-gray-400">
             <p>Tick Value: ${data.selectedInstrument.tickValue}</p>
             <p>Tick Size: {data.selectedInstrument.tickSize}</p>
@@ -314,9 +362,11 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
           </div>
         </div>
 
-        {/* Results Panel */}
-        <div className="space-y-6">
-          <div className="bg-gray-900 rounded-lg p-4 space-y-4">
+        <div className="space-y-6 self-center">
+          <motion.div
+            layout
+            className="bg-gray-900 rounded-lg p-4 space-y-4"
+          >
             <div className="text-center">
               <h3 className="text-sm text-gray-400">Recommended Contracts</h3>
               <p className="text-2xl font-bold text-blue-400">{contracts}</p>
@@ -338,17 +388,17 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
               <p className="text-2xl font-bold text-purple-400">1:{riskRewardRatio}</p>
             </div>
             
-            {/* Add Margin Info inside results panel */}
             {data.selectedExchange.type === 'direct' && (
-              <MarginInfo
-                instrument={data.selectedInstrument}
-                contracts={contracts}
-                exchange={data.selectedExchange}
-              />
+              <div className="text-center">
+                <MarginInfo
+                  instrument={data.selectedInstrument}
+                  contracts={contracts}
+                  exchange={data.selectedExchange}
+                />
+              </div>
             )}
-          </div>
+          </motion.div>
 
-          {/* Fee Savings Recommendation */}
           {savingsRecommendation && (
             <div className="bg-gray-900 rounded-lg p-4">
               <div className="flex items-center gap-2 text-yellow-400">
@@ -365,6 +415,63 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
           )}
         </div>
       </div>
-    </div>
+
+      <AnimatePresence>
+        {showPresetModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96"
+            >
+              <h3 className="text-lg font-semibold mb-4">Save Preset</h3>
+              <input
+                type="text"
+                placeholder="Preset Name"
+                value={newPresetName}
+                onChange={(e) => setNewPresetName(e.target.value)}
+                className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 mb-4"
+              />
+              <label className="flex items-center gap-2 mb-4">
+                <input
+                  type="checkbox"
+                  checked={isUniversalPreset}
+                  onChange={(e) => setIsUniversalPreset(e.target.checked)}
+                  className="rounded border-gray-600"
+                />
+                <span>Make Universal Preset</span>
+              </label>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowPresetModal(false)}
+                  className="px-4 py-2 text-gray-400 hover:text-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (newPresetName) {
+                      onSavePreset(newPresetName, isUniversalPreset);
+                      setNewPresetName('');
+                      setIsUniversalPreset(false);
+                      setShowPresetModal(false);
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-md"
+                >
+                  Save
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
