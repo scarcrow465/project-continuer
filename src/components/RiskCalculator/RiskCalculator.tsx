@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { CalculatorInstance } from './utils';
@@ -46,11 +45,20 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
 
   // Find the best contract number based on user's input ticks
   const findBestContractNumber = (userTicks: number, optimalContracts: OptimalContract[]): OptimalContract => {
+    if (optimalContracts.length === 0) {
+      // Return a default contract configuration if no optimal contracts are found
+      return {
+        contracts: 1,
+        ticksPerContract: userTicks,
+        totalRisk: data.selectedInstrument.tickValue * userTicks + feePerContract
+      };
+    }
+    
     return optimalContracts.reduce((best, current) => {
       const currentDiff = Math.abs(current.ticksPerContract - userTicks);
       const bestDiff = Math.abs(best.ticksPerContract - userTicks);
       return currentDiff < bestDiff ? current : best;
-    });
+    }, optimalContracts[0]); // Provide initial value
   };
 
   const bestContract = findBestContractNumber(data.ticks, optimalContracts);
@@ -323,4 +331,3 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
     </div>
   );
 };
-
