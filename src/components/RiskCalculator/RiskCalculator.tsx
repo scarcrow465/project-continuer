@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { CalculatorInstance } from './utils';
@@ -12,17 +13,50 @@ interface RiskCalculatorProps {
   onRemove: (id: string) => void;
 }
 
+interface OptimalContract {
+  contracts: number;
+  ticksPerContract: number;
+  totalRisk: number;
+}
+
 export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, onRemove }) => {
   const [activeField, setActiveField] = useState<'ticks' | 'points' | 'risk' | 'profit' | null>(null);
   
   const instrumentFee = getInstrumentFee(data.selectedExchange.id, data.selectedInstrument.id);
   const feePerContract = instrumentFee ?? data.customFee;
   
-  // Calculate risk per contract including fees
-  const riskPerContract = data.selectedInstrument.tickValue * data.ticks + feePerContract;
-  
-  // Calculate optimal contracts based on desired risk amount
-  const contracts = Math.max(1, Math.floor(data.riskAmount / riskPerContract));
+  // Calculate optimal contracts and ticks based on risk amount
+  const calculateOptimalContracts = (riskAmount: number, tickValue: number, fees: number): OptimalContract[] => {
+    const results: OptimalContract[] = [];
+    for (let contracts = 1; contracts <= 20; contracts++) {
+      const ticksPerContract = Math.floor((riskAmount - (contracts * fees)) / (contracts * tickValue));
+      if (ticksPerContract > 0) {
+        const totalRisk = (contracts * tickValue * ticksPerContract) + (contracts * fees);
+        results.push({ contracts, ticksPerContract, totalRisk });
+      }
+    }
+    return results;
+  };
+
+  const optimalContracts = calculateOptimalContracts(
+    data.riskAmount,
+    data.selectedInstrument.tickValue,
+    feePerContract
+  );
+
+  // Find the best contract number based on user's input ticks
+  const findBestContractNumber = (userTicks: number, optimalContracts: OptimalContract[]): OptimalContract => {
+    return optimalContracts.reduce((best, current) => {
+      const currentDiff = Math.abs(current.ticksPerContract - userTicks);
+      const bestDiff = Math.abs(best.ticksPerContract - userTicks);
+      return currentDiff < bestDiff ? current : best;
+    });
+  };
+
+  const bestContract = findBestContractNumber(data.ticks, optimalContracts);
+  const contracts = bestContract.contracts;
+  const recommendedTicks = bestContract.ticksPerContract;
+  const recommendedPoints = recommendedTicks * data.selectedInstrument.tickSize;
   
   const totalRisk = (contracts * data.selectedInstrument.tickValue * data.ticks) + (contracts * feePerContract);
   const totalFees = contracts * feePerContract;
@@ -75,11 +109,10 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
   };
 
   const getFieldStyle = (field: 'ticks' | 'points' | 'risk' | 'profit') => {
-    return `w-full bg-gray-700 border ${
-      activeField === field 
-        ? 'border-blue-500 ring-2 ring-blue-500/50' 
-        : 'border-gray-600'
-    } rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200`;
+    if (activeField === field) {
+      return 'w-full bg-gray-700 border border-blue-500 ring-2 ring-blue-500/50 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200';
+    }
+    return 'w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200';
   };
 
   const savingsRecommendation = getMicroSavingsRecommendation(
@@ -148,45 +181,46 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
             </select>
           </div>
 
-          {/* Custom Fee Input */}
-          {data.selectedExchange.id === 'none' && (
-            <div>
-              <label className="block text-sm font-medium mb-2">Custom Roundtrip Fee per Contract ($)</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={data.customFee}
-                onChange={(e) => onUpdate(data.id, { customFee: Math.max(0, parseFloat(e.target.value) || 0) })}
-                className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          )}
-
           {/* Risk Parameters */}
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Number of Ticks</label>
-              <input
-                type="number"
-                min="1"
-                value={data.ticks}
-                onChange={(e) => handleTicksChange(Math.max(1, parseInt(e.target.value) || 0))}
-                onFocus={() => setActiveField('ticks')}
-                className={getFieldStyle('ticks')}
-              />
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-2">Number of Ticks</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={data.ticks}
+                  onChange={(e) => handleTicksChange(Math.max(1, parseInt(e.target.value) || 0))}
+                  onFocus={() => setActiveField('ticks')}
+                  className={getFieldStyle('ticks')}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-2">Recommended Ticks</label>
+                <div className="text-gray-300 bg-gray-700 rounded-md px-3 py-2">
+                  {recommendedTicks}
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Number of Points</label>
-              <input
-                type="number"
-                min="0"
-                step={data.selectedInstrument.tickSize}
-                value={data.points}
-                onChange={(e) => handlePointsChange(Math.max(0, parseFloat(e.target.value) || 0))}
-                onFocus={() => setActiveField('points')}
-                className={getFieldStyle('points')}
-              />
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-2">Number of Points</label>
+                <input
+                  type="number"
+                  min="0"
+                  step={data.selectedInstrument.tickSize}
+                  value={data.points}
+                  onChange={(e) => handlePointsChange(Math.max(0, parseFloat(e.target.value) || 0))}
+                  onFocus={() => setActiveField('points')}
+                  className={getFieldStyle('points')}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-2">Recommended Points</label>
+                <div className="text-gray-300 bg-gray-700 rounded-md px-3 py-2">
+                  {recommendedPoints.toFixed(4)}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -243,6 +277,10 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
               <p className="text-2xl font-bold text-blue-400">{contracts}</p>
             </div>
             <div>
+              <h3 className="text-sm text-gray-400">Target Ticks per Contract</h3>
+              <p className="text-2xl font-bold text-blue-400">{recommendedTicks}</p>
+            </div>
+            <div>
               <h3 className="text-sm text-gray-400">Total Risk (including fees)</h3>
               <p className="text-2xl font-bold text-green-400">${totalRisk.toFixed(2)}</p>
             </div>
@@ -285,3 +323,4 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({ data, onUpdate, 
     </div>
   );
 };
+
