@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Calculator, Plus, LayoutGrid, Moon, Sun, RotateCw } from 'lucide-react';
 import { RiskCalculator } from '../components/RiskCalculator/RiskCalculator';
