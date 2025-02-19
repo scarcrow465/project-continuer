@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { X, AlertCircle, Trash2, Save, Settings, List, RotateCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -60,24 +59,46 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   const previousState = useRef<CalculatorInstance>(data);
   const { theme } = useTheme();
 
-  // Store previous state for undo functionality
   const handleStateChange = (updates: Partial<CalculatorInstance>) => {
     previousState.current = data;
     onUpdate(data.id, updates);
   };
 
-  // Handle undo action
   const handleUndo = () => {
     if (previousState.current) {
       onUpdate(data.id, previousState.current);
     }
   };
 
+  const findModifiedTicks = (userTicks: number, optimalContracts: OptimalContract[]): number => {
+    if (!optimalContracts.length) return userTicks;
+
+    const threshold = settings.thresholdPercentage / 100;
+    
+    const availableTicks = optimalContracts.map(c => c.ticksPerContract).sort((a, b) => a - b);
+    
+    for (let i = 0; i < availableTicks.length; i++) {
+      const currentTicks = availableTicks[i];
+      const lowerBound = currentTicks * (1 - threshold);
+      const upperBound = currentTicks * (1 + threshold);
+      
+      if (userTicks >= lowerBound && userTicks <= upperBound) {
+        return currentTicks;
+      }
+    }
+    
+    return availableTicks.reduce((prev, curr) => 
+      Math.abs(curr - userTicks) < Math.abs(prev - userTicks) ? curr : prev, 
+      availableTicks[0]
+    );
+  };
+
   const instrumentFee = getInstrumentFee(data.selectedExchange.id, data.selectedInstrument.id);
   const feePerContract = instrumentFee ?? data.customFee;
 
-  // Calculate optimal contracts
   const calculateOptimalContracts = (riskAmount: number, tickValue: number, fees: number): OptimalContract[] => {
+    if (riskAmount <= 0 || tickValue <= 0) return [];
+
     const results: OptimalContract[] = [];
     for (let contracts = 1; contracts <= 20; contracts++) {
       const ticksPerContract = Math.floor((riskAmount - (contracts * fees)) / (contracts * tickValue));
@@ -94,29 +115,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
     data.selectedInstrument.tickValue,
     feePerContract
   );
-
-  const findModifiedTicks = (userTicks: number, optimalContracts: OptimalContract[]): number => {
-    const threshold = settings.thresholdPercentage / 100;
-    
-    // Sort ticks in ascending order
-    const availableTicks = optimalContracts.map(c => c.ticksPerContract).sort((a, b) => a - b);
-    
-    // Find the appropriate modified ticks based on threshold
-    for (let i = 0; i < availableTicks.length; i++) {
-      const currentTicks = availableTicks[i];
-      const lowerBound = currentTicks * (1 - threshold);
-      const upperBound = currentTicks * (1 + threshold);
-      
-      if (userTicks >= lowerBound && userTicks <= upperBound) {
-        return currentTicks;
-      }
-    }
-    
-    // If no match found, return the closest available ticks
-    return availableTicks.reduce((prev, curr) => 
-      Math.abs(curr - userTicks) < Math.abs(prev - userTicks) ? curr : prev
-    );
-  };
 
   const modifiedTicks = findModifiedTicks(data.ticks, optimalContracts);
   const recommendedPoints = modifiedTicks * data.selectedInstrument.tickSize;
@@ -460,7 +458,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
         </div>
       </div>
 
-      {/* Settings Modal */}
       <AnimatePresence>
         {showSettingsModal && (
           <motion.div
@@ -507,7 +504,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Presets List Modal */}
       <AnimatePresence>
         {showPresetsListModal && (
           <motion.div
@@ -573,7 +569,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Save Preset Modal */}
       <AnimatePresence>
         {showPresetModal && (
           <motion.div
