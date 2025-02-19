@@ -6,7 +6,7 @@ import { CalculatorInstance } from './utils';
 import { instruments } from '../../data/instruments';
 import { exchangeGroups, getInstrumentFee } from '../../data/exchanges';
 import { MarginInfo } from './MarginInfo';
-import { calculateRiskReward } from './utils';
+import { calculateRiskReward, getMicroSavingsRecommendation } from './utils';
 import { useTheme } from 'next-themes';
 
 interface Preset {
