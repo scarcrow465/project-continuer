@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { X, AlertCircle, Trash2, Save, Settings, List, RotateCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -5,7 +6,7 @@ import { CalculatorInstance } from './utils';
 import { instruments } from '../../data/instruments';
 import { exchangeGroups, getInstrumentFee } from '../../data/exchanges';
 import { MarginInfo } from './MarginInfo';
-import { calculateRiskReward, getMicroSavingsRecommendation } from './utils';
+import { calculateRiskReward } from './utils';
 import { useTheme } from 'next-themes';
 
 interface Preset {
@@ -72,6 +73,28 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
     }
   };
 
+  const instrumentFee = getInstrumentFee(data.selectedExchange.id, data.selectedInstrument.id);
+  const feePerContract = instrumentFee ?? data.customFee;
+
+  // Calculate optimal contracts
+  const calculateOptimalContracts = (riskAmount: number, tickValue: number, fees: number): OptimalContract[] => {
+    const results: OptimalContract[] = [];
+    for (let contracts = 1; contracts <= 20; contracts++) {
+      const ticksPerContract = Math.floor((riskAmount - (contracts * fees)) / (contracts * tickValue));
+      if (ticksPerContract > 0) {
+        const totalRisk = (contracts * tickValue * ticksPerContract) + (contracts * fees);
+        results.push({ contracts, ticksPerContract, totalRisk });
+      }
+    }
+    return results;
+  };
+
+  const optimalContracts = calculateOptimalContracts(
+    data.riskAmount,
+    data.selectedInstrument.tickValue,
+    feePerContract
+  );
+
   const findModifiedTicks = (userTicks: number, optimalContracts: OptimalContract[]): number => {
     const threshold = settings.thresholdPercentage / 100;
     
@@ -93,22 +116,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
     return availableTicks.reduce((prev, curr) => 
       Math.abs(curr - userTicks) < Math.abs(prev - userTicks) ? curr : prev
     );
-  };
-
-  const instrumentFee = getInstrumentFee(data.selectedExchange.id, data.selectedInstrument.id);
-  const feePerContract = instrumentFee ?? data.customFee;
-
-  // Calculate optimal contracts
-  const calculateOptimalContracts = (riskAmount: number, tickValue: number, fees: number): OptimalContract[] => {
-    const results: OptimalContract[] = [];
-    for (let contracts = 1; contracts <= 20; contracts++) {
-      const ticksPerContract = Math.floor((riskAmount - (contracts * fees)) / (contracts * tickValue));
-      if (ticksPerContract > 0) {
-        const totalRisk = (contracts * tickValue * ticksPerContract) + (contracts * fees);
-        results.push({ contracts, ticksPerContract, totalRisk });
-      }
-    }
-    return results;
   };
 
   const modifiedTicks = findModifiedTicks(data.ticks, optimalContracts);
