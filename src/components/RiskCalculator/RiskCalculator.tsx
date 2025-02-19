@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { X, AlertCircle, Trash2, Save, Settings, List, RotateCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -199,6 +200,11 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
             }}
             className="w-full p-2 border rounded"
           />
+          {activeFields.has('ticks') && (
+            <div className="mt-1 text-sm text-blue-500">
+              Recommended ticks: {modifiedTicks} ({contracts} contracts)
+            </div>
+          )}
         </div>
 
         <div>
@@ -220,6 +226,11 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
             }}
             className="w-full p-2 border rounded"
           />
+          {activeFields.has('points') && (
+            <div className="mt-1 text-sm text-blue-500">
+              Recommended points: {recommendedPoints}
+            </div>
+          )}
         </div>
 
         <div>
@@ -278,6 +289,16 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
         exchange={data.selectedExchange}
         contracts={contracts}
       />
+
+      {savingsRecommendation && (
+        <div className="mt-4 p-4 bg-green-100 dark:bg-green-900 rounded">
+          <h3 className="text-lg font-semibold">Savings Recommendation</h3>
+          <p>
+            Consider using {savingsRecommendation.regularContracts} {savingsRecommendation.instrument.name} contracts instead.
+            This could save you ${savingsRecommendation.savings.toFixed(2)} in fees.
+          </p>
+        </div>
+      )}
 
       <div className="mt-6 flex justify-between">
         <button
@@ -338,9 +359,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
             </div>
           </motion.div>
         )}
-      </AnimatePresence>
 
-      <AnimatePresence>
         {showPresetsListModal && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -395,9 +414,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
             </div>
           </motion.div>
         )}
-      </AnimatePresence>
 
-      <AnimatePresence>
         {showPresetModal && (
           <motion.div
             initial={{ opacity: 0 }}
