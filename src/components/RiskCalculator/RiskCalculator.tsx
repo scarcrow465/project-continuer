@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { X, AlertCircle, Trash2, Save, Settings, List, RotateCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CalculatorInstance } from './utils';
+import { Preset } from './types';
 import { instruments } from '../../data/instruments';
 import { exchangeGroups, getInstrumentFee } from '../../data/exchanges';
 import { MarginInfo } from './MarginInfo';
@@ -87,20 +88,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   const instrumentFee = getInstrumentFee(data.selectedExchange.id, data.selectedInstrument.id);
   const feePerContract = instrumentFee ?? data.customFee;
 
-  const calculateOptimalContracts = (riskAmount: number, tickValue: number, fees: number): OptimalContract[] => {
-    if (riskAmount <= 0 || tickValue <= 0) return [];
-    
-    const results: OptimalContract[] = [];
-    for (let contracts = 1; contracts <= 20; contracts++) {
-      const ticksPerContract = Math.floor((riskAmount - (contracts * fees)) / (contracts * tickValue));
-      if (ticksPerContract > 0) {
-        const totalRisk = (contracts * tickValue * ticksPerContract) + (contracts * fees);
-        results.push({ contracts, ticksPerContract, totalRisk });
-      }
-    }
-    return results;
-  };
-
   const optimalContracts = calculateOptimalContracts(
     data.riskAmount,
     data.selectedInstrument.tickValue,
@@ -111,9 +98,20 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   const recommendedPoints = modifiedTicks * data.selectedInstrument.tickSize;
   const contracts = optimalContracts.find(c => c.ticksPerContract === modifiedTicks)?.contracts || 1;
 
-  // Calculate margin requirements and other important values
-  const { requiredMargin, maintenanceMargin } = calculateRiskReward(data);
-  const savingsRecommendation = getMicroSavingsRecommendation(data);
+  const riskRewardResults = calculateRiskReward(
+    data.riskAmount,
+    data.profitAmount,
+    data.riskRewardRatio,
+    'risk'
+  );
+
+  const savingsRecommendation = getMicroSavingsRecommendation(
+    contracts,
+    data.selectedInstrument,
+    feePerContract,
+    instruments,
+    data.selectedExchange.id
+  );
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
@@ -284,16 +282,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
       <MarginInfo
         instrument={data.selectedInstrument}
         exchange={data.selectedExchange}
-        riskAmount={data.riskAmount}
-        profitAmount={data.profitAmount}
-        riskRewardRatio={data.riskRewardRatio}
-        feePerContract={feePerContract}
-        requiredMargin={requiredMargin}
-        maintenanceMargin={maintenanceMargin}
-        savingsRecommendation={savingsRecommendation}
         contracts={contracts}
-        modifiedTicks={modifiedTicks}
-        recommendedPoints={recommendedPoints}
       />
 
       <div className="mt-6 flex justify-between">

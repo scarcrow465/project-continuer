@@ -31,7 +31,7 @@ export const calculateRiskReward = (
       return {
         riskAmount,
         profitAmount,
-        riskRewardRatio: riskAmount / profitAmount
+        riskRewardRatio: profitAmount / riskAmount
       };
     case 'ratio':
       return {
@@ -46,12 +46,14 @@ export const calculateRiskReward = (
 
 export const getMicroSavingsRecommendation = (
   contracts: number,
-  instrument: Instrument,
+  instrument: Instrument | null | undefined,
   feePerContract: number,
   instruments: Instrument[],
   exchangeId: string
 ) => {
+  if (!instrument) return null;
   if (!instrument.regularVersion) return null;
+
   const regularInstrument = instruments.find(i => i.id === instrument.regularVersion);
   if (!regularInstrument) return null;
 
@@ -59,7 +61,6 @@ export const getMicroSavingsRecommendation = (
   const regularContracts = Math.floor(contracts / 10);
   if (regularContracts < 1) return null;
 
-  // Get the fee for the regular instrument
   const regularFee = getExchangeInstrumentFee(exchangeId, regularInstrument.id) || feePerContract;
   const regularFees = regularContracts * regularFee;
   const savings = currentTotalFees - regularFees;

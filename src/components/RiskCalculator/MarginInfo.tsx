@@ -5,8 +5,8 @@ import { Exchange } from '../../data/exchanges';
 
 interface MarginInfoProps {
   instrument: Instrument;
-  contracts: number;
   exchange: Exchange;
+  contracts: number;
 }
 
 export const MarginInfo: React.FC<MarginInfoProps> = ({ instrument, contracts, exchange }) => {
