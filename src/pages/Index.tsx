@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
-import { Calculator, Plus, LayoutGrid, Moon, Sun, RotateCcw } from 'lucide-react';
+import { Calculator, Plus, LayoutGrid, Moon, Sun, RotateCw } from 'lucide-react';
 import { RiskCalculator } from '../components/RiskCalculator/RiskCalculator';
 import { CalculatorInstance } from '../components/RiskCalculator/utils';
+import { Preset } from '../components/RiskCalculator/types';
 import { instruments } from '../data/instruments';
 import { exchangeGroups } from '../data/exchanges';
 import { ThemeProvider } from 'next-themes';
@@ -9,14 +11,6 @@ import { useTheme } from 'next-themes';
 
 const STORAGE_KEY = 'lastCalculatorState';
 const PRESETS_KEY = 'calculatorPresets';
-
-interface Preset {
-  id: string;
-  name: string;
-  instrumentId: string | 'universal';
-  isDefault: boolean;
-  settings: Omit<CalculatorInstance, 'id'>;
-}
 
 const getDefaultCalculator = (presets: Preset[]): CalculatorInstance => {
   const savedState = localStorage.getItem(STORAGE_KEY);
@@ -99,7 +93,7 @@ const Index = () => {
     const newPreset: Preset = {
       id: String(Date.now()),
       name,
-      instrumentId: isUniversal ? 'universal' : calculator.selectedInstrument.id,
+      isUniversal,
       isDefault: false,
       settings: {
         selectedInstrument: calculator.selectedInstrument,
