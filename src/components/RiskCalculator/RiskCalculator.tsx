@@ -7,15 +7,16 @@ import { exchangeGroups, getInstrumentFee } from '../../data/exchanges';
 import { MarginInfo } from './MarginInfo';
 import { calculateRiskReward, getMicroSavingsRecommendation } from './utils';
 import { useTheme } from 'next-themes';
+import { Preset } from './types';
 
 interface RiskCalculatorProps {
   data: CalculatorInstance;
   onUpdate: (id: string, updates: Partial<CalculatorInstance>) => void;
   onRemove: (id: string) => void;
   onReset: () => void;
-  presets: any[];
+  presets: Preset[];
   onSavePreset: (name: string, isUniversal: boolean) => void;
-  onUpdatePreset: (presetId: string, updates: Partial<any>) => void;
+  onUpdatePreset: (presetId: string, updates: Partial<Preset>) => void;
   onDeletePreset: (presetId: string) => void;
   onSetDefaultPreset: (presetId: string) => void;
 }
@@ -45,13 +46,11 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   const previousState = useRef<CalculatorInstance>(data);
   const { theme } = useTheme();
 
-  // Store previous state for undo functionality
   const handleStateChange = (updates: Partial<CalculatorInstance>) => {
     previousState.current = data;
     onUpdate(data.id, updates);
   };
 
-  // Handle undo action
   const handleUndo = () => {
     if (previousState.current) {
       onUpdate(data.id, previousState.current);
@@ -61,10 +60,8 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   const findModifiedTicks = (userTicks: number, optimalContracts: OptimalContract[]): number => {
     const threshold = settings.thresholdPercentage / 100;
     
-    // Sort ticks in ascending order
     const availableTicks = optimalContracts.map(c => c.ticksPerContract).sort((a, b) => a - b);
     
-    // Find the appropriate modified ticks based on threshold
     for (let i = 0; i < availableTicks.length; i++) {
       const currentTicks = availableTicks[i];
       const lowerBound = currentTicks * (1 - threshold);
@@ -75,7 +72,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
       }
     }
     
-    // If no match found, return the closest available ticks
     return availableTicks.reduce((prev, curr) => 
       Math.abs(curr - userTicks) < Math.abs(prev - userTicks) ? curr : prev
     );
@@ -84,7 +80,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   const instrumentFee = getInstrumentFee(data.selectedExchange.id, data.selectedInstrument.id);
   const feePerContract = instrumentFee ?? data.customFee;
 
-  // Calculate optimal contracts
   const optimalContracts = calculateOptimalContracts(data.riskAmount, data.selectedInstrument.tickValue, feePerContract);
 
   const modifiedTicks = findModifiedTicks(data.ticks, optimalContracts);
@@ -94,7 +89,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   const totalRisk = (contracts * data.selectedInstrument.tickValue * modifiedTicks) + (contracts * feePerContract);
   const totalFees = contracts * feePerContract;
 
-  const riskRewardRatio = totalRisk > 0 ? (totalRisk / data.profitAmount).toFixed(2) : '0.00';
+  const riskRewardRatio = data.riskAmount > 0 ? (data.profitAmount / data.riskAmount).toFixed(2) : '0.00';
 
   const profitTargetTicks = Math.ceil(data.profitAmount / (contracts * data.selectedInstrument.tickValue));
 
@@ -429,7 +424,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
         </div>
       </div>
 
-      {/* Settings Modal */}
       <AnimatePresence>
         {showSettingsModal && (
           <motion.div
@@ -476,7 +470,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Presets List Modal */}
       <AnimatePresence>
         {showPresetsListModal && (
           <motion.div
@@ -542,7 +535,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Save Preset Modal */}
       <AnimatePresence>
         {showPresetModal && (
           <motion.div
@@ -602,3 +594,5 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
     </motion.div>
   );
 };
+
+export default RiskCalculator;
