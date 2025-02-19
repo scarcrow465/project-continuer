@@ -14,6 +14,30 @@ export interface CalculatorInstance {
   customFee: number;
 }
 
+export interface OptimalContract {
+  contracts: number;
+  ticksPerContract: number;
+  totalRisk: number;
+}
+
+export const calculateOptimalContracts = (
+  riskAmount: number, 
+  tickValue: number, 
+  fees: number
+): OptimalContract[] => {
+  if (riskAmount <= 0 || tickValue <= 0) return [];
+  
+  const results: OptimalContract[] = [];
+  for (let contracts = 1; contracts <= 20; contracts++) {
+    const ticksPerContract = Math.floor((riskAmount - (contracts * fees)) / (contracts * tickValue));
+    if (ticksPerContract > 0) {
+      const totalRisk = (contracts * tickValue * ticksPerContract) + (contracts * fees);
+      results.push({ contracts, ticksPerContract, totalRisk });
+    }
+  }
+  return results;
+};
+
 export const calculateRiskReward = (
   riskAmount: number,
   profitAmount: number,

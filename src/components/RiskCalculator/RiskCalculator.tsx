@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, AlertCircle, Trash2, Save, Settings, List, RotateCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CalculatorInstance } from './utils';
+import { CalculatorInstance, OptimalContract, calculateOptimalContracts } from './utils';
 import { Preset } from './types';
 import { instruments } from '../../data/instruments';
 import { exchangeGroups, getInstrumentFee } from '../../data/exchanges';
@@ -23,12 +23,6 @@ interface RiskCalculatorProps {
 
 interface CalculatorSettings {
   thresholdPercentage: number;
-}
-
-interface OptimalContract {
-  contracts: number;
-  ticksPerContract: number;
-  totalRisk: number;
 }
 
 export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
