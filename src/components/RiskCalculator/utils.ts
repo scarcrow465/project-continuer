@@ -31,7 +31,7 @@ export const calculateRiskReward = (
       return {
         riskAmount,
         profitAmount,
-        riskRewardRatio: profitAmount / riskAmount
+        riskRewardRatio: riskAmount / profitAmount
       };
     case 'ratio':
       return {
@@ -46,15 +46,12 @@ export const calculateRiskReward = (
 
 export const getMicroSavingsRecommendation = (
   contracts: number,
-  instrument: Instrument | undefined,
+  instrument: Instrument,
   feePerContract: number,
   instruments: Instrument[],
   exchangeId: string
 ) => {
-  // Add null checks for instrument
-  if (!instrument) return null;
   if (!instrument.regularVersion) return null;
-
   const regularInstrument = instruments.find(i => i.id === instrument.regularVersion);
   if (!regularInstrument) return null;
 
@@ -75,4 +72,3 @@ export const getMicroSavingsRecommendation = (
     instrument: regularInstrument
   };
 };
-
