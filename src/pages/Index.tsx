@@ -94,7 +94,8 @@ const Index = () => {
     ));
   };
 
-  const savePreset = (calculator: CalculatorInstance, name: string, isUniversal: boolean) => {
+  const savePreset = (name: string, isUniversal: boolean) => {
+    const calculator = calculators[calculators.length - 1];
     const newPreset: Preset = {
       id: String(Date.now()),
       name,

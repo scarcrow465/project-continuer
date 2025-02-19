@@ -58,12 +58,10 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   const previousState = useRef<CalculatorInstance>(data);
   const { theme } = useTheme();
 
-  // Function to handle undo
   const handleUndo = () => {
     onUpdate(data.id, previousState.current);
   };
 
-  // Update previous state when data changes
   React.useEffect(() => {
     previousState.current = data;
   }, [data]);
@@ -71,7 +69,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   const instrumentFee = getInstrumentFee(data.selectedExchange.id, data.selectedInstrument.id);
   const feePerContract = instrumentFee ?? data.customFee;
 
-  // Calculate optimal contracts with threshold setting
   const calculateOptimalContracts = (riskAmount: number, tickValue: number, fees: number): OptimalContract[] => {
     const results: OptimalContract[] = [];
     for (let contracts = 1; contracts <= 20; contracts++) {
@@ -84,7 +81,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
     return results;
   };
 
-  // Modified findBestContractNumber with threshold
   const findBestContractNumber = (userTicks: number, optimalContracts: OptimalContract[]): OptimalContract => {
     if (optimalContracts.length === 0) {
       return {
@@ -316,7 +312,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
             </select>
           </div>
 
-          {/* Risk Parameters */}
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <motion.div layout>
@@ -463,7 +458,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
         </div>
       </div>
 
-      {/* Settings Modal */}
       <AnimatePresence>
         {showSettingsModal && (
           <motion.div
@@ -510,7 +504,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Preset Modal */}
       <AnimatePresence>
         {showPresetModal && (
           <motion.div
