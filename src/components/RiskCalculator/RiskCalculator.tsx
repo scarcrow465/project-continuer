@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, AlertCircle, RotateCcw, Save, Settings, List, RotateCw } from 'lucide-react';
+import { X, AlertCircle, Trash2, Save, Settings, List, RotateCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CalculatorInstance } from './utils';
 import { instruments } from '../../data/instruments';
@@ -51,6 +51,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
 }) => {
   const [activeFields, setActiveFields] = useState<Set<'ticks' | 'points' | 'risk' | 'profit'>>(new Set());
   const [showPresetModal, setShowPresetModal] = useState(false);
+  const [showPresetsListModal, setShowPresetsListModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
   const [isUniversalPreset, setIsUniversalPreset] = useState(false);
@@ -58,17 +59,46 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   const previousState = useRef<CalculatorInstance>(data);
   const { theme } = useTheme();
 
-  const handleUndo = () => {
-    onUpdate(data.id, previousState.current);
+  // Store previous state for undo functionality
+  const handleStateChange = (updates: Partial<CalculatorInstance>) => {
+    previousState.current = data;
+    onUpdate(data.id, updates);
   };
 
-  React.useEffect(() => {
-    previousState.current = data;
-  }, [data]);
+  // Handle undo action
+  const handleUndo = () => {
+    if (previousState.current) {
+      onUpdate(data.id, previousState.current);
+    }
+  };
+
+  const findModifiedTicks = (userTicks: number, optimalContracts: OptimalContract[]): number => {
+    const threshold = settings.thresholdPercentage / 100;
+    
+    // Sort ticks in ascending order
+    const availableTicks = optimalContracts.map(c => c.ticksPerContract).sort((a, b) => a - b);
+    
+    // Find the appropriate modified ticks based on threshold
+    for (let i = 0; i < availableTicks.length; i++) {
+      const currentTicks = availableTicks[i];
+      const lowerBound = currentTicks * (1 - threshold);
+      const upperBound = currentTicks * (1 + threshold);
+      
+      if (userTicks >= lowerBound && userTicks <= upperBound) {
+        return currentTicks;
+      }
+    }
+    
+    // If no match found, return the closest available ticks
+    return availableTicks.reduce((prev, curr) => 
+      Math.abs(curr - userTicks) < Math.abs(prev - userTicks) ? curr : prev
+    );
+  };
 
   const instrumentFee = getInstrumentFee(data.selectedExchange.id, data.selectedInstrument.id);
   const feePerContract = instrumentFee ?? data.customFee;
 
+  // Calculate optimal contracts
   const calculateOptimalContracts = (riskAmount: number, tickValue: number, fees: number): OptimalContract[] => {
     const results: OptimalContract[] = [];
     for (let contracts = 1; contracts <= 20; contracts++) {
@@ -81,41 +111,11 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
     return results;
   };
 
-  const findBestContractNumber = (userTicks: number, optimalContracts: OptimalContract[]): OptimalContract => {
-    if (optimalContracts.length === 0) {
-      return {
-        contracts: 1,
-        ticksPerContract: userTicks,
-        totalRisk: data.selectedInstrument.tickValue * userTicks + feePerContract
-      };
-    }
+  const modifiedTicks = findModifiedTicks(data.ticks, optimalContracts);
+  const recommendedPoints = modifiedTicks * data.selectedInstrument.tickSize;
+  const contracts = optimalContracts.find(c => c.ticksPerContract === modifiedTicks)?.contracts || 1;
 
-    const threshold = settings.thresholdPercentage / 100;
-    const bestContract = optimalContracts.reduce((best, current) => {
-      const currentDiff = Math.abs(current.ticksPerContract - userTicks);
-      const bestDiff = Math.abs(best.ticksPerContract - userTicks);
-      
-      if (Math.abs(current.ticksPerContract - userTicks) <= userTicks * threshold) {
-        return currentDiff < bestDiff ? current : best;
-      }
-      return best;
-    }, optimalContracts[0]);
-
-    return bestContract;
-  };
-
-  const optimalContracts = calculateOptimalContracts(
-    data.riskAmount,
-    data.selectedInstrument.tickValue,
-    feePerContract
-  );
-
-  const bestContract = findBestContractNumber(data.ticks, optimalContracts);
-  const contracts = bestContract.contracts;
-  const recommendedTicks = bestContract.ticksPerContract;
-  const recommendedPoints = recommendedTicks * data.selectedInstrument.tickSize;
-
-  const totalRisk = (contracts * data.selectedInstrument.tickValue * recommendedTicks) + (contracts * feePerContract);
+  const totalRisk = (contracts * data.selectedInstrument.tickValue * modifiedTicks) + (contracts * feePerContract);
   const totalFees = contracts * feePerContract;
 
   const riskRewardRatio = totalRisk > 0 ? (totalRisk / data.profitAmount).toFixed(2) : '0.00';
@@ -138,7 +138,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
       next.add('ticks');
       return next;
     });
-    onUpdate(data.id, { ticks, points });
+    handleStateChange({ ticks, points });
   };
 
   const handlePointsChange = (points: number) => {
@@ -149,7 +149,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
       next.add('points');
       return next;
     });
-    onUpdate(data.id, { points, ticks });
+    handleStateChange({ points, ticks });
   };
 
   const handleRiskRewardUpdate = (
@@ -157,7 +157,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
     value: number
   ) => {
     if (type === 'ratio') {
-      onUpdate(data.id, {
+      handleStateChange({
         riskRewardRatio: value,
         profitAmount: data.riskAmount / value
       });
@@ -168,7 +168,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
         next.add('risk');
         return next;
       });
-      onUpdate(data.id, {
+      handleStateChange({
         riskAmount: value,
         profitAmount: value / data.riskRewardRatio
       });
@@ -179,7 +179,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
         next.add('profit');
         return next;
       });
-      onUpdate(data.id, {
+      handleStateChange({
         profitAmount: value,
         riskRewardRatio: data.riskAmount / value
       });
@@ -222,7 +222,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
       exit={{ opacity: 0, y: -20 }}
       className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 relative"
     >
-      <div className="absolute top-4 right-4 flex items-center gap-2">
+      <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
         <button
           onClick={() => setShowSettingsModal(true)}
           className="text-gray-400 hover:text-purple-400 transition-colors"
@@ -242,7 +242,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
           className="text-gray-400 hover:text-yellow-400 transition-colors"
           title="Reset Calculator"
         >
-          <RotateCcw size={20} />
+          <Trash2 size={20} />
         </button>
         <button
           onClick={() => setShowPresetModal(true)}
@@ -252,20 +252,15 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
           <Save size={20} />
         </button>
         <button
+          onClick={() => setShowPresetsListModal(true)}
           className="text-gray-400 hover:text-blue-400 transition-colors"
           title="Load Preset"
         >
           <List size={20} />
         </button>
-        <button 
-          onClick={() => onRemove(data.id)}
-          className="text-gray-400 hover:text-red-400 transition-colors"
-        >
-          <X size={20} />
-        </button>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6 items-center">
+      <div className="grid md:grid-cols-3 gap-6 items-center pt-12">
         <div className="md:col-span-2 space-y-6">
           <div>
             <label className="block text-sm font-medium mb-2">Select Instrument</label>
@@ -328,7 +323,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
               <motion.div layout>
                 <label className="block text-sm font-medium mb-2">Modified Tick Risk</label>
                 <div className="text-gray-300 bg-gray-800 dark:bg-gray-900 rounded-md px-3 py-2 cursor-not-allowed opacity-80">
-                  {recommendedTicks}
+                  {modifiedTicks}
                 </div>
               </motion.div>
             </div>
@@ -458,6 +453,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
         </div>
       </div>
 
+      {/* Settings Modal */}
       <AnimatePresence>
         {showSettingsModal && (
           <motion.div
@@ -504,6 +500,73 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
         )}
       </AnimatePresence>
 
+      {/* Presets List Modal */}
+      <AnimatePresence>
+        {showPresetsListModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96"
+            >
+              <h3 className="text-lg font-semibold mb-4">Load Preset</h3>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {presets
+                  .filter(p => p.instrumentId === 'universal' || p.instrumentId === data.selectedInstrument.id)
+                  .map(preset => (
+                    <div
+                      key={preset.id}
+                      className="flex items-center justify-between p-2 hover:bg-gray-700 rounded-md"
+                    >
+                      <span>{preset.name} {preset.isDefault && '(Default)'}</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            onUpdate(data.id, preset.settings);
+                            setShowPresetsListModal(false);
+                          }}
+                          className="text-blue-400 hover:text-blue-300"
+                        >
+                          Load
+                        </button>
+                        <button
+                          onClick={() => {
+                            onSetDefaultPreset(preset.id);
+                          }}
+                          className="text-yellow-400 hover:text-yellow-300"
+                        >
+                          {preset.isDefault ? 'Default' : 'Set Default'}
+                        </button>
+                        <button
+                          onClick={() => onDeletePreset(preset.id)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <button
+                  onClick={() => setShowPresetsListModal(false)}
+                  className="px-4 py-2 text-gray-400 hover:text-gray-300"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Save Preset Modal */}
       <AnimatePresence>
         {showPresetModal && (
           <motion.div
