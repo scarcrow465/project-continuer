@@ -1,6 +1,6 @@
 
 import { Instrument } from '../../data/instruments';
-import { Exchange, exchangeGroups, exchangeFeeMap, getInstrumentFee as getExchangeInstrumentFee } from '../../data/exchanges';
+import { Exchange } from '../../data/exchanges';
 
 export interface CalculatorInstance {
   id: string;
@@ -14,17 +14,39 @@ export interface CalculatorInstance {
   customFee: number;
 }
 
+export interface OptimalContract {
+  contracts: number;
+  ticksPerContract: number;
+  totalRisk: number;
+}
+
+export const calculateOptimalContracts = (
+  riskAmount: number,
+  tickValue: number,
+  fees: number
+): OptimalContract[] => {
+  const results: OptimalContract[] = [];
+  for (let contracts = 1; contracts <= 20; contracts++) {
+    const ticksPerContract = Math.floor((riskAmount - (contracts * fees)) / (contracts * tickValue));
+    if (ticksPerContract > 0) {
+      const totalRisk = (contracts * tickValue * ticksPerContract) + (contracts * fees);
+      results.push({ contracts, ticksPerContract, totalRisk });
+    }
+  }
+  return results;
+};
+
 export const calculateRiskReward = (
   riskAmount: number,
   profitAmount: number,
   riskRewardRatio: number,
   updateType: 'risk' | 'profit' | 'ratio'
-): { riskAmount: number; profitAmount: number; riskRewardRatio: number } => {
+) => {
   switch (updateType) {
     case 'risk':
       return {
         riskAmount,
-        profitAmount: riskAmount * riskRewardRatio,
+        profitAmount: riskAmount / riskRewardRatio,
         riskRewardRatio
       };
     case 'profit':
@@ -36,7 +58,7 @@ export const calculateRiskReward = (
     case 'ratio':
       return {
         riskAmount,
-        profitAmount: riskAmount * riskRewardRatio,
+        profitAmount: riskAmount / riskRewardRatio,
         riskRewardRatio
       };
     default:
@@ -59,8 +81,7 @@ export const getMicroSavingsRecommendation = (
   const regularContracts = Math.floor(contracts / 10);
   if (regularContracts < 1) return null;
 
-  // Get the fee for the regular instrument
-  const regularFee = getExchangeInstrumentFee(exchangeId, regularInstrument.id) || feePerContract;
+  const regularFee = feePerContract;
   const regularFees = regularContracts * regularFee;
   const savings = currentTotalFees - regularFees;
   

@@ -1,37 +1,23 @@
 import React, { useState, useRef } from 'react';
 import { X, AlertCircle, Trash2, Save, Settings, List, RotateCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CalculatorInstance } from './utils';
+import { CalculatorInstance, OptimalContract, calculateOptimalContracts } from './utils';
 import { instruments } from '../../data/instruments';
 import { exchangeGroups, getInstrumentFee } from '../../data/exchanges';
 import { MarginInfo } from './MarginInfo';
 import { calculateRiskReward, getMicroSavingsRecommendation } from './utils';
 import { useTheme } from 'next-themes';
 
-interface Preset {
-  id: string;
-  name: string;
-  instrumentId: string | 'universal';
-  isDefault: boolean;
-  settings: Omit<CalculatorInstance, 'id'>;
-}
-
 interface RiskCalculatorProps {
   data: CalculatorInstance;
   onUpdate: (id: string, updates: Partial<CalculatorInstance>) => void;
   onRemove: (id: string) => void;
   onReset: () => void;
-  presets: Preset[];
+  presets: any[];
   onSavePreset: (name: string, isUniversal: boolean) => void;
-  onUpdatePreset: (presetId: string, updates: Partial<Preset>) => void;
+  onUpdatePreset: (presetId: string, updates: Partial<any>) => void;
   onDeletePreset: (presetId: string) => void;
   onSetDefaultPreset: (presetId: string) => void;
-}
-
-interface OptimalContract {
-  contracts: number;
-  ticksPerContract: number;
-  totalRisk: number;
 }
 
 interface CalculatorSettings {
@@ -99,17 +85,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   const feePerContract = instrumentFee ?? data.customFee;
 
   // Calculate optimal contracts
-  const calculateOptimalContracts = (riskAmount: number, tickValue: number, fees: number): OptimalContract[] => {
-    const results: OptimalContract[] = [];
-    for (let contracts = 1; contracts <= 20; contracts++) {
-      const ticksPerContract = Math.floor((riskAmount - (contracts * fees)) / (contracts * tickValue));
-      if (ticksPerContract > 0) {
-        const totalRisk = (contracts * tickValue * ticksPerContract) + (contracts * fees);
-        results.push({ contracts, ticksPerContract, totalRisk });
-      }
-    }
-    return results;
-  };
+  const optimalContracts = calculateOptimalContracts(data.riskAmount, data.selectedInstrument.tickValue, feePerContract);
 
   const modifiedTicks = findModifiedTicks(data.ticks, optimalContracts);
   const recommendedPoints = modifiedTicks * data.selectedInstrument.tickSize;
