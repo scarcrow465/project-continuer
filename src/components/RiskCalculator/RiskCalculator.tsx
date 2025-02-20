@@ -233,6 +233,12 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
 
       <div className="grid md:grid-cols-3 gap-6 items-center pt-12">
         <div className="md:col-span-2 space-y-6">
+          <div className="text-gray-300 bg-gray-800 dark:bg-gray-900 rounded-md px-3 py-2 mb-4">
+            <h2 className="text-lg font-medium">
+              {data.selectedExchange.name} - {data.selectedInstrument.name}
+            </h2>
+          </div>
+
           <div>
             <label className="block text-sm font-medium mb-2">Select Instrument</label>
             <select

@@ -100,6 +100,7 @@ const Index = () => {
       id: String(Date.now()),
       name,
       instrumentId: isUniversal ? 'universal' : calculator.selectedInstrument.id,
+      isUniversal,
       isDefault: false,
       settings: {
         selectedInstrument: calculator.selectedInstrument,
