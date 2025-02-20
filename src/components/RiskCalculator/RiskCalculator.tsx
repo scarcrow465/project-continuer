@@ -58,31 +58,24 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   };
 
   const findModifiedTicks = (userTicks: number, optimalContracts: OptimalContract[]): number => {
+    if (!userTicks || optimalContracts.length === 0) return userTicks;
+
     const threshold = settings.thresholdPercentage / 100;
-    
-    // Get all available tick tiers sorted
     const availableTicks = [...new Set(optimalContracts.map(c => c.ticksPerContract))].sort((a, b) => a - b);
     
-    if (availableTicks.length === 0) return userTicks;
-
-    // Find the appropriate tick tier based on thresholds
-    for (const tickTier of availableTicks) {
-      const lowerBound = Math.floor(tickTier * (1 - threshold));
-      const upperBound = Math.ceil(tickTier * (1 + threshold));
+    let selectedTier = availableTicks[0];
+    
+    for (const tier of availableTicks) {
+      const lowerBound = tier - (tier * threshold);
+      const upperBound = tier + (tier * threshold);
       
       if (userTicks >= lowerBound && userTicks <= upperBound) {
-        return tickTier;
+        selectedTier = tier;
+        break;
       }
     }
     
-    // If no tier matches, find the closest tier
-    const closestTier = availableTicks.reduce((closest, tier) => {
-      const currentDiff = Math.abs(tier - userTicks);
-      const closestDiff = Math.abs(closest - userTicks);
-      return currentDiff < closestDiff ? tier : closest;
-    }, availableTicks[0]);
-    
-    return closestTier;
+    return selectedTier;
   };
 
   const instrumentFee = getInstrumentFee(data.selectedExchange.id, data.selectedInstrument.id);
@@ -199,7 +192,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 relative"
+      className="bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl p-6 relative"
     >
       <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
         <button
