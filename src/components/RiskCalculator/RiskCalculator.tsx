@@ -64,14 +64,20 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
     const availableTicks = [...new Set(optimalContracts.map(c => c.ticksPerContract))].sort((a, b) => a - b);
     
     let selectedTier = availableTicks[0];
+    let minDiff = Math.abs(userTicks - availableTicks[0]);
     
     for (const tier of availableTicks) {
       const lowerBound = tier - (tier * threshold);
       const upperBound = tier + (tier * threshold);
       
       if (userTicks >= lowerBound && userTicks <= upperBound) {
+        return tier;
+      }
+      
+      const diff = Math.abs(userTicks - tier);
+      if (diff < minDiff) {
+        minDiff = diff;
         selectedTier = tier;
-        break;
       }
     }
     
@@ -192,7 +198,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="bg-gray-800 dark:bg-gray-800 rounded-lg shadow-xl p-6 relative"
+      className="bg-gray-800 rounded-lg shadow-xl p-6 relative"
     >
       <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
         <button
