@@ -62,6 +62,8 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
     
     const availableTicks = optimalContracts.map(c => c.ticksPerContract).sort((a, b) => a - b);
     
+    if (availableTicks.length === 0) return userTicks;
+    
     for (let i = 0; i < availableTicks.length; i++) {
       const currentTicks = availableTicks[i];
       const lowerBound = currentTicks * (1 - threshold);
@@ -73,7 +75,8 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
     }
     
     return availableTicks.reduce((prev, curr) => 
-      Math.abs(curr - userTicks) < Math.abs(prev - userTicks) ? curr : prev
+      Math.abs(curr - userTicks) < Math.abs(prev - userTicks) ? curr : prev,
+      availableTicks[0]
     );
   };
 
