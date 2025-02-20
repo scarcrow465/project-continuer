@@ -60,24 +60,29 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   const findModifiedTicks = (userTicks: number, optimalContracts: OptimalContract[]): number => {
     const threshold = settings.thresholdPercentage / 100;
     
-    const availableTicks = optimalContracts.map(c => c.ticksPerContract).sort((a, b) => a - b);
+    // Get all available tick tiers sorted
+    const availableTicks = [...new Set(optimalContracts.map(c => c.ticksPerContract))].sort((a, b) => a - b);
     
     if (availableTicks.length === 0) return userTicks;
-    
-    for (let i = 0; i < availableTicks.length; i++) {
-      const currentTicks = availableTicks[i];
-      const lowerBound = currentTicks * (1 - threshold);
-      const upperBound = currentTicks * (1 + threshold);
+
+    // Find the appropriate tick tier based on thresholds
+    for (const tickTier of availableTicks) {
+      const lowerBound = Math.floor(tickTier * (1 - threshold));
+      const upperBound = Math.ceil(tickTier * (1 + threshold));
       
       if (userTicks >= lowerBound && userTicks <= upperBound) {
-        return currentTicks;
+        return tickTier;
       }
     }
     
-    return availableTicks.reduce((prev, curr) => 
-      Math.abs(curr - userTicks) < Math.abs(prev - userTicks) ? curr : prev,
-      availableTicks[0]
-    );
+    // If no tier matches, find the closest tier
+    const closestTier = availableTicks.reduce((closest, tier) => {
+      const currentDiff = Math.abs(tier - userTicks);
+      const closestDiff = Math.abs(closest - userTicks);
+      return currentDiff < closestDiff ? tier : closest;
+    }, availableTicks[0]);
+    
+    return closestTier;
   };
 
   const instrumentFee = getInstrumentFee(data.selectedExchange.id, data.selectedInstrument.id);
