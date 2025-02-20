@@ -42,9 +42,37 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
   const [isUniversalPreset, setIsUniversalPreset] = useState(false);
+  const [tempThresholdPercentage, setTempThresholdPercentage] = useState(25);
   const [settings, setSettings] = useState<CalculatorSettings>({ thresholdPercentage: 25 });
   const previousState = useRef<CalculatorInstance>(data);
   const { theme } = useTheme();
+
+  const findModifiedTicks = (userTicks: number, optimalContracts: OptimalContract[]): number => {
+    if (!userTicks || optimalContracts.length === 0) return userTicks;
+
+    const threshold = settings.thresholdPercentage / 100;
+    const availableTicks = [...new Set(optimalContracts.map(c => c.ticksPerContract))].sort((a, b) => a - b);
+    
+    for (let i = 0; i < availableTicks.length; i++) {
+      const tier = availableTicks[i];
+      const nextTier = availableTicks[i + 1] || Number.MAX_VALUE;
+      
+      const lowerBound = tier - (tier * threshold);
+      const upperBound = tier + (tier * threshold);
+      
+      if (userTicks >= lowerBound && userTicks <= upperBound) {
+        return tier;
+      }
+      
+      if (userTicks > upperBound && userTicks < (nextTier - (nextTier * threshold))) {
+        return tier;
+      }
+    }
+    
+    return availableTicks.reduce((prev, curr) => {
+      return Math.abs(curr - userTicks) < Math.abs(prev - userTicks) ? curr : prev;
+    });
+  };
 
   const handleStateChange = (updates: Partial<CalculatorInstance>) => {
     previousState.current = data;
@@ -55,33 +83,6 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
     if (previousState.current) {
       onUpdate(data.id, previousState.current);
     }
-  };
-
-  const findModifiedTicks = (userTicks: number, optimalContracts: OptimalContract[]): number => {
-    if (!userTicks || optimalContracts.length === 0) return userTicks;
-
-    const threshold = settings.thresholdPercentage / 100;
-    const availableTicks = [...new Set(optimalContracts.map(c => c.ticksPerContract))].sort((a, b) => a - b);
-    
-    let selectedTier = availableTicks[0];
-    let minDiff = Math.abs(userTicks - availableTicks[0]);
-    
-    for (const tier of availableTicks) {
-      const lowerBound = tier - (tier * threshold);
-      const upperBound = tier + (tier * threshold);
-      
-      if (userTicks >= lowerBound && userTicks <= upperBound) {
-        return tier;
-      }
-      
-      const diff = Math.abs(userTicks - tier);
-      if (diff < minDiff) {
-        minDiff = diff;
-        selectedTier = tier;
-      }
-    }
-    
-    return selectedTier;
   };
 
   const instrumentFee = getInstrumentFee(data.selectedExchange.id, data.selectedInstrument.id);
@@ -449,33 +450,39 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
               initial={{ scale: 0.9 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0.9 }}
-              className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96"
+              className="bg-gray-800 rounded-lg p-6 w-96"
             >
-              <h3 className="text-lg font-semibold mb-4">Calculator Settings</h3>
+              <h3 className="text-lg font-semibold mb-4 text-white">Calculator Settings</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">
+                  <label className="block text-sm font-medium mb-2 text-gray-200">
                     Threshold Percentage (%)
                   </label>
                   <input
                     type="number"
                     min="0"
                     max="100"
-                    value={settings.thresholdPercentage}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      thresholdPercentage: Math.max(0, Math.min(100, parseFloat(e.target.value) || 0))
-                    }))}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2"
+                    value={tempThresholdPercentage}
+                    onChange={(e) => setTempThresholdPercentage(Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)))}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white"
                   />
                 </div>
               </div>
               <div className="flex justify-end gap-2 mt-4">
                 <button
+                  onClick={() => {
+                    setSettings({ ...settings, thresholdPercentage: tempThresholdPercentage });
+                    setShowSettingsModal(false);
+                  }}
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md"
+                >
+                  Save
+                </button>
+                <button
                   onClick={() => setShowSettingsModal(false)}
                   className="px-4 py-2 text-gray-400 hover:text-gray-300"
                 >
-                  Close
+                  Cancel
                 </button>
               </div>
             </motion.div>
