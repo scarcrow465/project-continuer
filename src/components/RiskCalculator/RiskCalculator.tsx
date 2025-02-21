@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { X, AlertCircle, Trash2, Save, Settings, List, RotateCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -40,6 +39,10 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   const [isUniversalPreset, setIsUniversalPreset] = useState(false);
   const previousState = useRef<CalculatorInstance>(data);
   const { theme } = useTheme();
+
+  const handleReset = () => {
+    onReset();
+  };
 
   const findModifiedTicks = (userTicks: number, optimalContracts: OptimalContract[]): number => {
     if (!userTicks || optimalContracts.length === 0) return userTicks;
