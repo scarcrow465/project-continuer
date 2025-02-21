@@ -49,10 +49,11 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
     
     const availableTicks = [...new Set(optimalContracts.map(c => c.ticksPerContract))].sort((a, b) => a - b);
     
-    // Find the closest tier
-    return availableTicks.reduce((prev, curr) => {
-      return Math.abs(curr - userTicks) < Math.abs(prev - userTicks) ? curr : prev;
-    });
+    // Find the next tier that's greater than or equal to userTicks
+    const nextTier = availableTicks.find(tier => tier >= userTicks);
+    
+    // If we found a next tier, use it; otherwise use the highest available tier
+    return nextTier || availableTicks[availableTicks.length - 1];
   };
 
   const handleStateChange = (updates: Partial<CalculatorInstance>) => {
