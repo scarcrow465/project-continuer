@@ -59,7 +59,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
     const instrumentFee = getInstrumentFee(data.selectedExchange.id, data.selectedInstrument.id);
     const feePerContract = instrumentFee ?? data.customFee;
     const optimalContracts = calculateOptimalContracts(data.riskAmount, data.selectedInstrument.tickValue, feePerContract);
-    return [...new Set(optimalContracts.map(c => c.ticksPerContract))].sort((a, b) => a - b);
+    return optimalContracts.sort((a, b) => a.contracts - b.contracts || a.ticksPerContract - b.ticksPerContract);
   };
 
   const handleStateChange = (updates: Partial<CalculatorInstance>) => {
@@ -114,34 +114,18 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   };
 
   const handleRiskRewardUpdate = (type: 'risk' | 'profit' | 'ratio', value: number) => {
-    if (type === 'ratio') {
-      handleStateChange({
-        riskRewardRatio: value,
-        profitAmount: data.riskAmount * value
-      });
-    } else if (type === 'risk') {
-      setActiveFields(prev => {
-        const next = new Set(prev);
-        next.delete('profit');
-        next.add('risk');
-        return next;
-      });
-      handleStateChange({
-        riskAmount: value,
-        profitAmount: value * data.riskRewardRatio
-      });
-    } else {
-      setActiveFields(prev => {
-        const next = new Set(prev);
-        next.delete('risk');
-        next.add('profit');
-        return next;
-      });
-      handleStateChange({
-        profitAmount: value,
-        riskRewardRatio: value / data.riskAmount
-      });
-    }
+    const result = calculateRiskReward(
+      type === 'risk' ? value : data.riskAmount,
+      type === 'profit' ? value : data.profitAmount,
+      type === 'ratio' ? value : data.riskRewardRatio,
+      type
+    );
+
+    handleStateChange({
+      riskAmount: result.riskAmount,
+      profitAmount: result.profitAmount,
+      riskRewardRatio: result.riskRewardRatio
+    });
   };
 
   const getFieldStyle = (field: 'ticks' | 'points' | 'risk' | 'profit') => {
@@ -158,22 +142,31 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
             exit={{ width: 0, opacity: 0 }}
             className="bg-gray-900 rounded-lg mr-4 p-4 h-fit"
           >
-            <h3 className="text-lg font-medium text-gray-300 mb-4">Tick Risk Tiers</h3>
-            <div className="space-y-2">
-              {getTierList().map((tier) => (
-                <div
-                  key={tier}
-                  className={`px-3 py-2 rounded-md ${
-                    modifiedTicks === tier 
-                      ? 'bg-blue-500/20 border border-blue-500/50' 
-                      : 'bg-gray-800 border border-gray-700'
-                  }`}
-                >
-                  <p className="text-gray-300">
-                    {tier} ticks
-                  </p>
-                </div>
-              ))}
+            <h3 className="text-lg font-medium text-gray-300 mb-4">Risk Tiers</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="text-left text-gray-400 py-2">Contracts</th>
+                    <th className="text-left text-gray-400 py-2 pl-4">Ticks</th>
+                  </tr>
+                </thead>
+                <tbody className="text-gray-300">
+                  {getTierList().map((tier) => (
+                    <tr
+                      key={`${tier.contracts}-${tier.ticksPerContract}`}
+                      className={`${
+                        modifiedTicks === tier.ticksPerContract
+                          ? 'bg-blue-500/20 border border-blue-500/50'
+                          : 'border-b border-gray-700'
+                      }`}
+                    >
+                      <td className="py-2">{tier.contracts}</td>
+                      <td className="py-2 pl-4">{tier.ticksPerContract}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </motion.div>
         )}
