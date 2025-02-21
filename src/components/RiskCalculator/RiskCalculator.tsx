@@ -49,10 +49,8 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
     
     const availableTicks = [...new Set(optimalContracts.map(c => c.ticksPerContract))].sort((a, b) => a - b);
     
-    // Find the next tier that's greater than or equal to userTicks
     const nextTier = availableTicks.find(tier => tier >= userTicks);
     
-    // If we found a next tier, use it; otherwise use the highest available tier
     return nextTier || availableTicks[availableTicks.length - 1];
   };
 
@@ -149,7 +147,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
       exit={{ opacity: 0, y: -20 }}
       className="bg-gray-800 rounded-lg shadow-xl p-6 relative"
     >
-      <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+      <div className="absolute top-2 right-2 flex items-center gap-2 z-10">
         <button onClick={handleUndo} className="text-gray-400 hover:text-blue-400 transition-colors" title="Undo">
           <RotateCw size={20} />
         </button>
@@ -164,10 +162,9 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
         </button>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6 items-center pt-12">
-        {/* Main content section */}
+      <div className="grid md:grid-cols-3 gap-6 items-center pt-8">
         <div className="md:col-span-2 space-y-6">
-          <div className="text-gray-300 bg-gray-800 dark:bg-gray-900 rounded-md px-3 py-2 mb-4">
+          <div className="text-gray-300 bg-gray-800 dark:bg-gray-900 rounded-md px-3 py-2">
             <h2 className="text-lg font-medium text-center text-gray-300">
               {data.selectedExchange.name} - {data.selectedInstrument.name}
             </h2>
@@ -229,7 +226,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
               </motion.div>
               <motion.div layout>
                 <label className="block text-sm font-medium mb-2 text-gray-300">Modified Tick Risk</label>
-                <div className="text-gray-300 bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
+                <div className="text-gray-300 bg-gray-900 border border-gray-600 rounded-md px-3 py-2">
                   {modifiedTicks}
                 </div>
               </motion.div>
@@ -249,7 +246,7 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
               </motion.div>
               <motion.div layout>
                 <label className="block text-sm font-medium mb-2 text-gray-300">Modified Point Risk</label>
-                <div className="text-gray-300 bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
+                <div className="text-gray-300 bg-gray-900 border border-gray-600 rounded-md px-3 py-2">
                   {Math.round(recommendedPoints * 100) / 100}
                 </div>
               </motion.div>
