@@ -42,7 +42,22 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
   const { theme } = useTheme();
 
   const handleReset = () => {
-    onReset();
+    const defaultValues = {
+      selectedInstrument: instruments[0],
+      ticks: 0,
+      points: 0,
+      riskAmount: 0,
+      profitAmount: 0,
+      riskRewardRatio: 2,
+      selectedExchange: exchangeGroups[0].exchanges[0],
+      customFee: 4.50
+    };
+    
+    onUpdate(data.id, defaultValues);
+  };
+
+  const handleRemove = () => {
+    onRemove(data.id);
   };
 
   const findModifiedTicks = (userTicks: number, optimalContracts: OptimalContract[]): number => {
@@ -190,6 +205,9 @@ export const RiskCalculator: React.FC<RiskCalculatorProps> = ({
             <RotateCw size={20} />
           </button>
           <button onClick={handleReset} className="text-gray-400 hover:text-yellow-400 transition-colors" title="Reset Calculator">
+            <Settings size={20} />
+          </button>
+          <button onClick={handleRemove} className="text-gray-400 hover:text-red-400 transition-colors" title="Remove Calculator">
             <Trash2 size={20} />
           </button>
           <button onClick={() => setShowPresetModal(true)} className="text-gray-400 hover:text-green-400 transition-colors" title="Save Preset">
